@@ -33,8 +33,10 @@ export async function connectWhatsApp(): Promise<WASocket> {
     logger,
     browser: ['WasEx', 'Chrome', '120.0.0'],
     connectTimeoutMs: 60000,
+    defaultQueryTimeoutMs: 60000, // Timeout para queries
     markOnlineOnConnect: false,
-    syncFullHistory: true, // Sincronizar historial completo para obtener contactos
+    syncFullHistory: true,
+    retryRequestDelayMs: 2000, // Delay entre reintentos internos
   });
 
   socket.ev.on('creds.update', saveCreds);

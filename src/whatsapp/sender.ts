@@ -85,13 +85,33 @@ export async function sendMessage(
     message = { text };
   }
 
-  try {
-    const result = await socket.sendMessage(jid, message);
-    console.log('Mensaje enviado OK:', result?.key?.id);
-  } catch (error) {
-    console.error('ERROR al enviar:', error);
-    throw error;
+  // Reintentar hasta 3 veces en caso de timeout
+  const maxRetries = 3;
+  let lastError: any;
+
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`Intento ${attempt}/${maxRetries}...`);
+      const result = await socket.sendMessage(jid, message);
+      console.log('Mensaje enviado OK:', result?.key?.id);
+      return;
+    } catch (error: any) {
+      lastError = error;
+      console.error(`ERROR intento ${attempt}:`, error?.message || error);
+
+      // Si es timeout y no es el último intento, esperar y reintentar
+      if (error?.message?.includes('Timed Out') && attempt < maxRetries) {
+        console.log(`Esperando 5s antes de reintentar...`);
+        await new Promise(r => setTimeout(r, 5000));
+      } else if (!error?.message?.includes('Timed Out')) {
+        // Si no es timeout, no reintentar
+        break;
+      }
+    }
   }
+
+  console.error('ERROR al enviar después de reintentos:', lastError);
+  throw lastError;
 }
 
 export function getMediaFolder(): string {
