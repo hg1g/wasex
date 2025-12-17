@@ -33,10 +33,19 @@ Abre http://localhost:3000 en tu navegador.
 
 ### 3. Cargar contactos
 
-Los contactos de WhatsApp no incluyen nombres de tu agenda. Tienes dos opciones:
+Los contactos de WhatsApp no incluyen nombres de tu agenda. Tienes tres opciones:
 
-**Opción A: Importar desde CSV**
-1. Despliega "Importar contactos desde CSV"
+**Opción A: Importar desde Google Contacts (recomendado)**
+1. Ve a [contacts.google.com](https://contacts.google.com)
+2. En el menú lateral, click en **"Exportar"**
+3. Selecciona los contactos que quieras exportar
+4. Elige formato **"Google CSV"** y descarga
+5. En WasEx, despliega "Importar desde Google Contacts"
+6. Sube el archivo CSV descargado
+7. Click en **"Importar de Google"**
+
+**Opción B: Importar CSV manual**
+1. Despliega "Importar CSV manual"
 2. Pega tus contactos en formato:
    ```
    5491112345678,Juan Perez
@@ -44,9 +53,9 @@ Los contactos de WhatsApp no incluyen nombres de tu agenda. Tienes dos opciones:
    ```
 3. Click en **"Importar"**
 
-**Opción B: Importar desde Excel**
-1. Crea un archivo `contacts.xlsx` con columnas: `telefono`, `nombre`
-2. Usa el script de importación (próximamente)
+**Opción C: Desde WhatsApp**
+- Los contactos con los que hayas chateado se cargan automáticamente
+- Solo aparecen con nombre si tienen nombre de perfil en WhatsApp
 
 ### 4. Crear plantilla
 

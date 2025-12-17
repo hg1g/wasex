@@ -20,6 +20,7 @@ const storage = multer.diskStorage({
   },
 });
 const upload = multer({ storage });
+const uploadCsv = multer({ storage: multer.memoryStorage() });
 
 // Middleware
 app.use(express.json());
@@ -101,6 +102,107 @@ app.post('/api/contacts/import', (req, res) => {
 
   res.json({ success: true, imported });
 });
+
+// Importar contactos desde Google Contacts CSV
+app.post('/api/contacts/import-google', uploadCsv.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ success: false, error: 'No file uploaded' });
+  }
+
+  try {
+    const content = req.file.buffer.toString('utf-8');
+    const lines = content.split('\n');
+
+    if (lines.length < 2) {
+      return res.status(400).json({ success: false, error: 'CSV vacío' });
+    }
+
+    // Parsear header para encontrar columnas
+    const header = parseCSVLine(lines[0]);
+    const nameIndex = header.findIndex(h => h === 'Name');
+    const givenNameIndex = header.findIndex(h => h === 'Given Name');
+    const familyNameIndex = header.findIndex(h => h === 'Family Name');
+
+    // Buscar todas las columnas de teléfono
+    const phoneIndices: number[] = [];
+    header.forEach((h, i) => {
+      if (h.includes('Phone') && h.includes('Value')) {
+        phoneIndices.push(i);
+      }
+    });
+
+    if (phoneIndices.length === 0) {
+      return res.status(400).json({ success: false, error: 'No se encontraron columnas de teléfono' });
+    }
+
+    let imported = 0;
+
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+
+      const values = parseCSVLine(line);
+
+      // Obtener nombre
+      let name = '';
+      if (nameIndex >= 0 && values[nameIndex]) {
+        name = values[nameIndex];
+      } else if (givenNameIndex >= 0 || familyNameIndex >= 0) {
+        const given = givenNameIndex >= 0 ? values[givenNameIndex] || '' : '';
+        const family = familyNameIndex >= 0 ? values[familyNameIndex] || '' : '';
+        name = `${given} ${family}`.trim();
+      }
+
+      if (!name) continue;
+
+      // Obtener teléfonos
+      for (const phoneIndex of phoneIndices) {
+        const phone = values[phoneIndex];
+        if (phone) {
+          // Limpiar número de teléfono
+          const cleanPhone = phone.replace(/[\s\-\(\)\+]/g, '');
+          if (cleanPhone.length >= 8) {
+            addManualContact(cleanPhone, name);
+            imported++;
+          }
+        }
+      }
+    }
+
+    res.json({ success: true, imported });
+  } catch (error) {
+    console.error('Error parsing Google CSV:', error);
+    res.status(500).json({ success: false, error: 'Error al procesar CSV' });
+  }
+});
+
+// Parser de línea CSV (maneja comillas)
+function parseCSVLine(line: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+
+  result.push(current.trim());
+  return result;
+}
 
 // Guardar plantilla
 app.post('/api/template', (req, res) => {

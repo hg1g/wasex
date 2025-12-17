@@ -225,7 +225,21 @@
       <h2>4. SELECCIONAR CONTACTOS <span class="selected-count" id="selected-count">0 seleccionados</span></h2>
 
       <details style="margin-bottom: 15px;">
-        <summary style="cursor: pointer; color: #25D366;">Importar contactos desde CSV</summary>
+        <summary style="cursor: pointer; color: #25D366;">Importar desde Google Contacts</summary>
+        <div style="margin-top: 10px; padding: 15px; background: #222; border-radius: 8px;">
+          <p style="color: #888; font-size: 13px; margin-bottom: 10px;">
+            1. Ve a <a href="https://contacts.google.com" target="_blank" style="color: #25D366;">contacts.google.com</a><br>
+            2. Click en "Exportar" (menu lateral)<br>
+            3. Selecciona "Google CSV" y descarga<br>
+            4. Sube el archivo aqui:
+          </p>
+          <input type="file" id="google-csv-input" accept=".csv" style="margin-bottom: 10px;">
+          <button class="btn" id="btn-import-google">Importar de Google</button>
+        </div>
+      </details>
+
+      <details style="margin-bottom: 15px;">
+        <summary style="cursor: pointer; color: #888;">Importar CSV manual</summary>
         <div style="margin-top: 10px;">
           <textarea id="csv-input" placeholder="Formato: telefono,nombre&#10;5491123456789,Juan Perez" style="min-height: 80px;"></textarea>
           <button class="btn btn-secondary" id="btn-import-csv" style="margin-top: 8px;">Importar</button>
@@ -292,6 +306,8 @@
     const selectedCount = document.getElementById('selected-count');
     const csvInput = document.getElementById('csv-input');
     const btnImportCsv = document.getElementById('btn-import-csv');
+    const googleCsvInput = document.getElementById('google-csv-input');
+    const btnImportGoogle = document.getElementById('btn-import-google');
     const btnSelectAll = document.getElementById('btn-select-all');
     const btnDeselectAll = document.getElementById('btn-deselect-all');
     const btnAddToQueue = document.getElementById('btn-add-to-queue');
@@ -408,7 +424,7 @@
       });
     }
 
-    // Importar CSV
+    // Importar CSV manual
     btnImportCsv.addEventListener('click', async () => {
       const csv = csvInput.value.trim();
       if (!csv) {
@@ -426,6 +442,42 @@
         csvInput.value = '';
         loadAllContacts();
       }
+    });
+
+    // Importar desde Google Contacts CSV
+    btnImportGoogle.addEventListener('click', async () => {
+      const file = googleCsvInput.files[0];
+      if (!file) {
+        showToast('Selecciona un archivo CSV primero', true);
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      btnImportGoogle.disabled = true;
+      btnImportGoogle.textContent = 'Importando...';
+
+      try {
+        const res = await fetch('/api/contacts/import-google', {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          showToast(`${data.imported} contactos importados de Google`);
+          googleCsvInput.value = '';
+          loadAllContacts();
+        } else {
+          showToast(data.error || 'Error al importar', true);
+        }
+      } catch (e) {
+        showToast('Error al importar', true);
+      }
+
+      btnImportGoogle.disabled = false;
+      btnImportGoogle.textContent = 'Importar de Google';
     });
 
     // Cargar contactos
