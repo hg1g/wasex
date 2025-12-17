@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WasEx - WhatsApp Sender</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #111;
+      color: #fff;
+      min-height: 100vh;
+    }
+    .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 30px; color: #25D366; }
+
+    .card {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+    .card h2 { font-size: 16px; color: #888; margin-bottom: 15px; }
+
+    .status { display: flex; align-items: center; gap: 10px; }
+    .status-dot {
+      width: 12px; height: 12px; border-radius: 50%;
+      background: #ff4444;
+    }
+    .status-dot.connected { background: #25D366; }
+
+    #qr-container { text-align: center; padding: 20px; }
+    #qr-container img { max-width: 250px; border-radius: 8px; }
+
+    .btn {
+      background: #25D366;
+      color: #fff;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .btn:hover { background: #1da851; }
+    .btn:disabled { background: #444; cursor: not-allowed; }
+    .btn-secondary { background: #333; }
+    .btn-secondary:hover { background: #444; }
+    .btn-danger { background: #ff4444; }
+
+    input, textarea {
+      width: 100%;
+      background: #222;
+      border: 1px solid #333;
+      color: #fff;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 14px;
+    }
+    input:focus, textarea:focus { outline: none; border-color: #25D366; }
+    textarea { min-height: 120px; resize: vertical; font-family: inherit; }
+
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 700px) { .grid { grid-template-columns: 1fr; } }
+
+    .contact-list { max-height: 350px; overflow-y: auto; }
+    .contact-item {
+      display: flex;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #333;
+      cursor: pointer;
+      gap: 10px;
+    }
+    .contact-item:hover { background: #222; }
+    .contact-item.selected { background: #1a3d2a; }
+    .contact-item input[type="checkbox"] {
+      width: 18px; height: 18px; cursor: pointer;
+      accent-color: #25D366;
+    }
+    .contact-name { font-weight: 500; }
+    .contact-phone { color: #888; font-size: 13px; }
+
+    .media-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+    .media-item {
+      padding: 8px 16px;
+      background: #333;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .media-item:hover { background: #444; }
+    .media-item.selected { background: #25D366; color: #000; }
+
+    .hidden { display: none !important; }
+
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #25D366;
+      color: #000;
+      padding: 15px 25px;
+      border-radius: 8px;
+      font-weight: 500;
+      animation: slideIn 0.3s ease;
+      z-index: 1000;
+    }
+    .toast.error { background: #ff4444; color: #fff; }
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    .upload-zone {
+      border: 2px dashed #333;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      margin-bottom: 15px;
+    }
+    .upload-zone:hover { border-color: #25D366; }
+    .upload-zone input { display: none; }
+
+    /* Queue de mensajes */
+    .queue-list { max-height: 300px; overflow-y: auto; }
+    .queue-item {
+      background: #222;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 10px;
+    }
+    .queue-item-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .queue-item-name { font-weight: 600; color: #25D366; }
+    .queue-item-status { font-size: 12px; }
+    .queue-item-status.pending { color: #888; }
+    .queue-item-status.sending { color: #f1c40f; }
+    .queue-item-status.sent { color: #25D366; }
+    .queue-item-status.error { color: #ff4444; }
+    .queue-item textarea {
+      min-height: 60px;
+      font-size: 13px;
+    }
+    .queue-item .btn-remove {
+      background: transparent;
+      color: #ff4444;
+      padding: 4px 8px;
+      font-size: 12px;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      background: #333;
+      border-radius: 8px;
+      height: 8px;
+      margin: 15px 0;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      background: #25D366;
+      height: 100%;
+      width: 0%;
+      transition: width 0.3s;
+    }
+
+    /* Selected count badge */
+    .selected-count {
+      background: #25D366;
+      color: #000;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>WasEx</h1>
+
+    <!-- Conexion -->
+    <div class="card">
+      <h2>1. CONEXION WHATSAPP</h2>
+      <div class="status">
+        <div class="status-dot" id="status-dot"></div>
+        <span id="status-text">Desconectado</span>
+        <button class="btn" id="btn-connect" style="margin-left: auto;">Conectar</button>
+      </div>
+      <div id="qr-container" class="hidden">
+        <p style="margin-bottom: 15px; color: #888;">Escanea con WhatsApp:</p>
+        <img id="qr-image" src="" alt="QR Code">
+      </div>
+    </div>
+
+    <div id="main-content" class="hidden">
+    <div class="grid">
+      <!-- Plantilla -->
+      <div class="card">
+        <h2>2. PLANTILLA DEL MENSAJE</h2>
+        <textarea id="template" placeholder="Escribe tu mensaje...&#10;&#10;Usa {{nombre}} para personalizar"></textarea>
+        <p style="color: #666; font-size: 12px; margin-top: 8px;">Variables: {{nombre}}, {{telefono}}</p>
+        <button class="btn" id="btn-save-template" style="margin-top: 10px;">Guardar Plantilla</button>
+      </div>
+
+      <!-- Media -->
+      <div class="card">
+        <h2>3. FLYER (imagen/video)</h2>
+        <div class="upload-zone" id="upload-zone">
+          <input type="file" id="file-input" accept="image/*,video/mp4">
+          <p>Click para subir archivo</p>
+          <p style="color: #666; font-size: 12px;">JPG, PNG, MP4</p>
+        </div>
+        <div class="media-list" id="media-list"></div>
+      </div>
+    </div>
+
+    <!-- Contactos -->
+    <div class="card">
+      <h2>4. SELECCIONAR CONTACTOS <span class="selected-count" id="selected-count">0 seleccionados</span></h2>
+
+      <details style="margin-bottom: 15px;">
+        <summary style="cursor: pointer; color: #25D366;">Importar contactos desde CSV</summary>
+        <div style="margin-top: 10px;">
+          <textarea id="csv-input" placeholder="Formato: telefono,nombre&#10;5491123456789,Juan Perez" style="min-height: 80px;"></textarea>
+          <button class="btn btn-secondary" id="btn-import-csv" style="margin-top: 8px;">Importar</button>
+        </div>
+      </details>
+
+      <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+        <input type="text" id="search-input" placeholder="Filtrar contactos..." style="flex: 1;">
+        <button class="btn btn-secondary" id="btn-select-all">Seleccionar todos</button>
+        <button class="btn btn-secondary" id="btn-deselect-all">Deseleccionar</button>
+      </div>
+
+      <p id="contacts-count" style="color: #666; font-size: 12px; margin: 10px 0;"></p>
+      <div class="contact-list" id="contact-list"></div>
+
+      <button class="btn" id="btn-add-to-queue" style="margin-top: 15px; width: 100%;">
+        Agregar seleccionados a la cola de envio
+      </button>
+    </div>
+
+    <!-- Cola de envio -->
+    <div class="card" id="queue-section">
+      <h2>5. COLA DE ENVIO</h2>
+      <div class="queue-list" id="queue-list">
+        <p style="color: #666; text-align: center;">No hay mensajes en la cola</p>
+      </div>
+
+      <div class="progress-bar hidden" id="progress-bar">
+        <div class="progress-bar-fill" id="progress-fill"></div>
+      </div>
+      <p id="progress-text" style="color: #888; font-size: 13px; margin-top: 10px;"></p>
+
+      <div style="display: flex; gap: 10px; margin-top: 15px;">
+        <button class="btn btn-secondary" id="btn-clear-queue">Limpiar cola</button>
+        <button class="btn" id="btn-send-all" style="flex: 1;">
+          ENVIAR TODOS (con delay anti-ban)
+        </button>
+      </div>
+    </div>
+    </div><!-- cierre main-content -->
+  </div>
+
+  <script>
+    // Estado
+    let allContacts = [];
+    let selectedContacts = new Set();
+    let messageQueue = []; // {contact, message, status}
+    let isSending = false;
+
+    // Elementos
+    const statusDot = document.getElementById('status-dot');
+    const statusText = document.getElementById('status-text');
+    const btnConnect = document.getElementById('btn-connect');
+    const qrContainer = document.getElementById('qr-container');
+    const qrImage = document.getElementById('qr-image');
+    const templateInput = document.getElementById('template');
+    const btnSaveTemplate = document.getElementById('btn-save-template');
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const mediaList = document.getElementById('media-list');
+    const searchInput = document.getElementById('search-input');
+    const contactList = document.getElementById('contact-list');
+    const contactsCount = document.getElementById('contacts-count');
+    const selectedCount = document.getElementById('selected-count');
+    const csvInput = document.getElementById('csv-input');
+    const btnImportCsv = document.getElementById('btn-import-csv');
+    const btnSelectAll = document.getElementById('btn-select-all');
+    const btnDeselectAll = document.getElementById('btn-deselect-all');
+    const btnAddToQueue = document.getElementById('btn-add-to-queue');
+    const queueList = document.getElementById('queue-list');
+    const btnClearQueue = document.getElementById('btn-clear-queue');
+    const btnSendAll = document.getElementById('btn-send-all');
+    const progressBar = document.getElementById('progress-bar');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const mainContent = document.getElementById('main-content');
+
+    // Toast
+    function showToast(message, isError = false) {
+      const toast = document.createElement('div');
+      toast.className = 'toast' + (isError ? ' error' : '');
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    // Actualizar estado
+    async function updateStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+
+        if (data.connected) {
+          statusDot.classList.add('connected');
+          statusText.textContent = `Conectado (${data.contactsCount} contactos)`;
+          btnConnect.textContent = 'Conectado';
+          btnConnect.disabled = true;
+          qrContainer.classList.add('hidden');
+          mainContent.classList.remove('hidden');
+          if (allContacts.length === 0) {
+            loadAllContacts();
+          }
+        } else if (data.qrCode) {
+          statusText.textContent = 'Escanea el QR...';
+          qrImage.src = data.qrCode;
+          qrContainer.classList.remove('hidden');
+        }
+
+        if (data.template && !templateInput.value) {
+          templateInput.value = data.template;
+          templateSaved = true; // Plantilla ya guardada del servidor
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Conectar
+    btnConnect.addEventListener('click', async () => {
+      btnConnect.disabled = true;
+      btnConnect.textContent = 'Conectando...';
+      await fetch('/api/connect', { method: 'POST' });
+    });
+
+    // Detectar cambios en la plantilla
+    templateInput.addEventListener('input', () => {
+      templateSaved = false;
+    });
+
+    // Guardar plantilla
+    btnSaveTemplate.addEventListener('click', async () => {
+      const template = templateInput.value;
+      if (!template.trim()) {
+        showToast('Escribe una plantilla primero', true);
+        return;
+      }
+      await fetch('/api/template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ template })
+      });
+      templateSaved = true;
+      showToast('Plantilla guardada');
+    });
+
+    // Upload
+    uploadZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch('/api/media/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (data.success) {
+        showToast('Archivo subido: ' + data.filename);
+        loadMediaFiles();
+      }
+    });
+
+    // Cargar archivos media
+    async function loadMediaFiles() {
+      const res = await fetch('/api/media');
+      const files = await res.json();
+      mediaList.innerHTML = files.map(f => `
+        <div class="media-item ${f.selected ? 'selected' : ''}" data-name="${f.name}">
+          ${f.type === 'video' ? '[VIDEO]' : '[IMG]'} ${f.name}
+        </div>
+      `).join('');
+      mediaList.querySelectorAll('.media-item').forEach(el => {
+        el.addEventListener('click', async () => {
+          const filename = el.dataset.name;
+          await fetch('/api/media/select', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename })
+          });
+          loadMediaFiles();
+        });
+      });
+    }
+
+    // Importar CSV
+    btnImportCsv.addEventListener('click', async () => {
+      const csv = csvInput.value.trim();
+      if (!csv) {
+        showToast('Escribe los contactos primero', true);
+        return;
+      }
+      const res = await fetch('/api/contacts/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv })
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast(`${data.imported} contactos importados`);
+        csvInput.value = '';
+        loadAllContacts();
+      }
+    });
+
+    // Cargar contactos
+    async function loadAllContacts() {
+      const res = await fetch('/api/contacts');
+      allContacts = await res.json();
+      renderContacts(allContacts);
+    }
+
+    function renderContacts(contacts) {
+      contactsCount.textContent = `Mostrando ${contacts.length} contactos`;
+      contactList.innerHTML = contacts.map(c => `
+        <div class="contact-item ${selectedContacts.has(c.id) ? 'selected' : ''}" data-id="${c.id}" data-name="${c.name}" data-phone="${c.phone}">
+          <input type="checkbox" ${selectedContacts.has(c.id) ? 'checked' : ''}>
+          <div>
+            <div class="contact-name">${c.name}</div>
+            <div class="contact-phone">${c.phone}</div>
+          </div>
+        </div>
+      `).join('');
+
+      contactList.querySelectorAll('.contact-item').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (e.target.type === 'checkbox') return;
+          const checkbox = el.querySelector('input[type="checkbox"]');
+          checkbox.checked = !checkbox.checked;
+          toggleContact(el, checkbox.checked, e);
+        });
+        el.querySelector('input').addEventListener('change', (e) => {
+          toggleContact(el, e.target.checked, e);
+        });
+      });
+    }
+
+    let lastClickedIndex = -1;
+
+    function toggleContact(el, selected, event) {
+      const id = el.dataset.id;
+      const allItems = Array.from(contactList.querySelectorAll('.contact-item'));
+      const currentIndex = allItems.indexOf(el);
+
+      // Shift+Click: seleccionar rango
+      if (event && event.shiftKey && lastClickedIndex !== -1) {
+        const start = Math.min(lastClickedIndex, currentIndex);
+        const end = Math.max(lastClickedIndex, currentIndex);
+
+        for (let i = start; i <= end; i++) {
+          const item = allItems[i];
+          selectedContacts.add(item.dataset.id);
+          item.classList.add('selected');
+          item.querySelector('input').checked = true;
+        }
+      }
+      // Ctrl+Click: agregar/quitar sin perder selección
+      else if (event && event.ctrlKey) {
+        if (selected) {
+          selectedContacts.add(id);
+          el.classList.add('selected');
+        } else {
+          selectedContacts.delete(id);
+          el.classList.remove('selected');
+        }
+      }
+      // Click normal
+      else {
+        if (selected) {
+          selectedContacts.add(id);
+          el.classList.add('selected');
+        } else {
+          selectedContacts.delete(id);
+          el.classList.remove('selected');
+        }
+      }
+
+      lastClickedIndex = currentIndex;
+      updateSelectedCount();
+    }
+
+    function updateSelectedCount() {
+      selectedCount.textContent = `${selectedContacts.size} seleccionados`;
+    }
+
+    // Filtrar
+    searchInput.addEventListener('input', () => {
+      const query = searchInput.value.toLowerCase();
+      const filtered = query
+        ? allContacts.filter(c => c.name.toLowerCase().includes(query) || c.phone.includes(query))
+        : allContacts;
+      renderContacts(filtered);
+    });
+
+    // Seleccionar/Deseleccionar todos
+    btnSelectAll.addEventListener('click', () => {
+      const visibleItems = contactList.querySelectorAll('.contact-item');
+      visibleItems.forEach(el => {
+        selectedContacts.add(el.dataset.id);
+        el.classList.add('selected');
+        el.querySelector('input').checked = true;
+      });
+      updateSelectedCount();
+    });
+
+    btnDeselectAll.addEventListener('click', () => {
+      selectedContacts.clear();
+      contactList.querySelectorAll('.contact-item').forEach(el => {
+        el.classList.remove('selected');
+        el.querySelector('input').checked = false;
+      });
+      updateSelectedCount();
+    });
+
+    // Agregar a cola
+    let templateSaved = false;
+
+    btnAddToQueue.addEventListener('click', async () => {
+      if (selectedContacts.size === 0) {
+        showToast('Selecciona al menos un contacto', true);
+        return;
+      }
+      if (!templateSaved) {
+        showToast('Primero guarda la plantilla', true);
+        return;
+      }
+
+      // Obtener contactos seleccionados
+      for (const id of selectedContacts) {
+        const contact = allContacts.find(c => c.id === id);
+        if (!contact) continue;
+
+        // Ya esta en cola?
+        if (messageQueue.find(q => q.contact.id === id)) continue;
+
+        // Generar mensaje personalizado
+        const res = await fetch('/api/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ contactName: contact.name, contactPhone: contact.phone })
+        });
+        const data = await res.json();
+
+        messageQueue.push({
+          contact,
+          message: data.message,
+          status: 'pending'
+        });
+      }
+
+      renderQueue();
+      showToast(`${selectedContacts.size} mensajes agregados a la cola`);
+
+      // Limpiar seleccion
+      selectedContacts.clear();
+      renderContacts(allContacts);
+      updateSelectedCount();
+    });
+
+    // Renderizar cola
+    function renderQueue() {
+      if (messageQueue.length === 0) {
+        queueList.innerHTML = '<p style="color: #666; text-align: center;">No hay mensajes en la cola</p>';
+        return;
+      }
+
+      queueList.innerHTML = messageQueue.map((item, index) => `
+        <div class="queue-item" data-index="${index}">
+          <div class="queue-item-header">
+            <span class="queue-item-name">${item.contact.name}</span>
+            <span class="queue-item-status ${item.status}">${getStatusText(item.status)}</span>
+            ${item.status === 'pending' ? `<button class="btn btn-remove" data-index="${index}">Quitar</button>` : ''}
+          </div>
+          <textarea ${item.status !== 'pending' ? 'disabled' : ''} data-index="${index}">${item.message}</textarea>
+        </div>
+      `).join('');
+
+      // Event listeners para editar mensajes
+      queueList.querySelectorAll('textarea').forEach(ta => {
+        ta.addEventListener('input', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          messageQueue[idx].message = e.target.value;
+        });
+      });
+
+      // Event listeners para quitar
+      queueList.querySelectorAll('.btn-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const idx = parseInt(e.target.dataset.index);
+          messageQueue.splice(idx, 1);
+          renderQueue();
+        });
+      });
+    }
+
+    function getStatusText(status) {
+      switch(status) {
+        case 'pending': return 'Pendiente';
+        case 'sending': return 'Enviando...';
+        case 'sent': return 'Enviado';
+        case 'error': return 'Error';
+        default: return status;
+      }
+    }
+
+    // Limpiar cola
+    btnClearQueue.addEventListener('click', () => {
+      if (isSending) {
+        showToast('Espera a que termine el envio', true);
+        return;
+      }
+      messageQueue = [];
+      renderQueue();
+    });
+
+    // Enviar todos
+    btnSendAll.addEventListener('click', async () => {
+      const pending = messageQueue.filter(m => m.status === 'pending');
+      if (pending.length === 0) {
+        showToast('No hay mensajes pendientes', true);
+        return;
+      }
+
+      isSending = true;
+      btnSendAll.disabled = true;
+      btnSendAll.textContent = 'Enviando...';
+      progressBar.classList.remove('hidden');
+
+      let sent = 0;
+      let errors = 0;
+
+      for (let i = 0; i < messageQueue.length; i++) {
+        const item = messageQueue[i];
+        if (item.status !== 'pending') continue;
+
+        item.status = 'sending';
+        renderQueue();
+        progressText.textContent = `Enviando a ${item.contact.name}...`;
+
+        try {
+          const res = await fetch('/api/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contactId: item.contact.id,
+              contactName: item.contact.name,
+              contactPhone: item.contact.phone,
+              customMessage: item.message
+            })
+          });
+          const data = await res.json();
+
+          if (data.success) {
+            item.status = 'sent';
+            sent++;
+          } else {
+            item.status = 'error';
+            errors++;
+          }
+        } catch (e) {
+          item.status = 'error';
+          errors++;
+        }
+
+        renderQueue();
+
+        // Actualizar progreso
+        const progress = ((sent + errors) / pending.length) * 100;
+        progressFill.style.width = progress + '%';
+
+        // Delay aleatorio entre 30-60 segundos (excepto el ultimo)
+        const remainingPending = messageQueue.filter(m => m.status === 'pending').length;
+        if (remainingPending > 0) {
+          const delay = 30 + Math.random() * 30; // 30-60 segundos
+          progressText.textContent = `Esperando ${Math.round(delay)}s antes del siguiente (anti-ban)...`;
+          await new Promise(r => setTimeout(r, delay * 1000));
+        }
+      }
+
+      isSending = false;
+      btnSendAll.disabled = false;
+      btnSendAll.textContent = 'ENVIAR TODOS (con delay anti-ban)';
+      progressText.textContent = `Completado: ${sent} enviados, ${errors} errores`;
+
+      // Recargar contactos para actualizar el orden (más usados arriba)
+      await loadAllContacts();
+
+      showToast(`Envio completado: ${sent} enviados, ${errors} errores`);
+    });
+
+    // Inicializar
+    updateStatus();
+    loadMediaFiles();
+    loadAllContacts();
+    setInterval(updateStatus, 2000);
+  </script>
+</body>
+</html>

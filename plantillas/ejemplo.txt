@@ -1,0 +1,8 @@
+Hola {{nombre}}!
+
+Te invitamos a nuestro evento especial.
+
+Fecha: 20 de Diciembre
+Lugar: Centro de Convenciones
+
+Te esperamos!

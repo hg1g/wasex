@@ -1,0 +1,202 @@
+import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import { connectWhatsApp, getSocket, isWhatsAppConnected, getQRCode } from './whatsapp/client.js';
+import { loadContacts, searchContacts, getContacts, addManualContact, markContactUsed } from './contacts/manager.js';
+import { sendMessage, listMediaFiles, getMediaFolder } from './whatsapp/sender.js';
+import { parseTemplate, setTemplate, getTemplate, extractFirstName } from './templates/parser.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = 3000;
+
+// Configurar multer para subir archivos
+const storage = multer.diskStorage({
+  destination: path.join(__dirname, '../data/media'),
+  filename: (req, file, cb) => {
+    cb(null, file.originalname);
+  },
+});
+const upload = multer({ storage });
+
+// Middleware
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '../public')));
+app.use('/media', express.static(path.join(__dirname, '../data/media')));
+
+// Crear carpetas necesarias
+const folders = [
+  path.join(__dirname, '../data/auth'),
+  path.join(__dirname, '../data/media'),
+  path.join(__dirname, '../public'),
+];
+folders.forEach((f) => fs.mkdirSync(f, { recursive: true }));
+
+// Estado de la app
+let selectedMediaFile: string | null = null;
+
+// ============ RUTAS API ============
+
+// Estado de conexion
+app.get('/api/status', (req, res) => {
+  res.json({
+    connected: isWhatsAppConnected(),
+    qrCode: getQRCode(),
+    contactsCount: getContacts().length,
+    template: getTemplate(),
+    selectedMedia: selectedMediaFile,
+  });
+});
+
+// Conectar a WhatsApp
+app.post('/api/connect', async (req, res) => {
+  try {
+    if (isWhatsAppConnected()) {
+      return res.json({ success: true, message: 'Ya conectado' });
+    }
+    connectWhatsApp().then(async (socket) => {
+      console.log('WhatsApp conectado, cargando contactos...');
+      await loadContacts(socket);
+      console.log(`${getContacts().length} contactos cargados`);
+    });
+    res.json({ success: true, message: 'Conectando...' });
+  } catch (error) {
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+// Listar todos los contactos
+app.get('/api/contacts', (req, res) => {
+  const query = req.query.q as string;
+  if (query) {
+    res.json(searchContacts(query));
+  } else {
+    res.json(getContacts()); // Todos los contactos
+  }
+});
+
+// Importar contactos desde CSV
+app.post('/api/contacts/import', (req, res) => {
+  const { csv } = req.body;
+  if (!csv) {
+    return res.status(400).json({ success: false, error: 'No CSV data' });
+  }
+
+  const lines = csv.split('\n').filter((l: string) => l.trim());
+  let imported = 0;
+
+  for (const line of lines) {
+    // Formato: telefono,nombre o telefono;nombre
+    const parts = line.split(/[,;]/).map((p: string) => p.trim());
+    if (parts.length >= 2) {
+      const [phone, name] = parts;
+      if (phone && name) {
+        addManualContact(phone, name);
+        imported++;
+      }
+    }
+  }
+
+  res.json({ success: true, imported });
+});
+
+// Guardar plantilla
+app.post('/api/template', (req, res) => {
+  const { template } = req.body;
+  setTemplate(template);
+  res.json({ success: true });
+});
+
+// Obtener plantilla
+app.get('/api/template', (req, res) => {
+  res.json({ template: getTemplate() });
+});
+
+// Listar archivos de media
+app.get('/api/media', async (req, res) => {
+  const files = await listMediaFiles();
+  res.json(files.map((f) => ({ ...f, selected: f.name === selectedMediaFile })));
+});
+
+// Subir archivo
+app.post('/api/media/upload', upload.single('file'), (req, res) => {
+  if (req.file) {
+    selectedMediaFile = req.file.filename;
+    res.json({ success: true, filename: req.file.filename });
+  } else {
+    res.status(400).json({ success: false, error: 'No file' });
+  }
+});
+
+// Seleccionar archivo existente
+app.post('/api/media/select', (req, res) => {
+  const { filename } = req.body;
+  selectedMediaFile = filename || null;
+  res.json({ success: true });
+});
+
+// Previsualizar mensaje
+app.post('/api/preview', (req, res) => {
+  const { contactName, contactPhone } = req.body;
+  const message = parseTemplate({
+    nombre: extractFirstName(contactName),
+    telefono: contactPhone,
+  });
+  res.json({ message, media: selectedMediaFile });
+});
+
+// Enviar mensaje
+app.post('/api/send', async (req, res) => {
+  const { contactId, contactName, contactPhone, customMessage } = req.body;
+
+  console.log('=== ENVIANDO ===');
+  console.log('Contacto:', contactName, contactId);
+  console.log('Mensaje:', customMessage?.substring(0, 50) + '...');
+  console.log('Media seleccionado:', selectedMediaFile);
+
+  if (!isWhatsAppConnected()) {
+    console.log('ERROR: WhatsApp no conectado');
+    return res.status(400).json({ success: false, error: 'WhatsApp no conectado' });
+  }
+
+  try {
+    const message = customMessage || parseTemplate({
+      nombre: extractFirstName(contactName),
+      telefono: contactPhone,
+    });
+
+    const mediaFiles = await listMediaFiles();
+    const media = selectedMediaFile
+      ? mediaFiles.find((f) => f.name === selectedMediaFile)
+      : undefined;
+
+    console.log('Media encontrado:', media?.name, media?.type);
+
+    await sendMessage(getSocket(), contactId, message, media);
+    console.log('ENVIADO OK');
+
+    // Marcar contacto como usado (para ordenar por frecuencia)
+    markContactUsed(contactId);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.log('ERROR:', error);
+    res.status(500).json({ success: false, error: String(error) });
+  }
+});
+
+// Iniciar servidor
+app.listen(PORT, () => {
+  console.log(`
+╔═══════════════════════════════════════════╗
+║                                           ║
+║   WasEx - WhatsApp Sender                 ║
+║                                           ║
+║   Abre en tu navegador:                   ║
+║   http://localhost:${PORT}                    ║
+║                                           ║
+╚═══════════════════════════════════════════╝
+  `);
+});
