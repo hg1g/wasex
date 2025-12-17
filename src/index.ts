@@ -119,9 +119,16 @@ app.post('/api/contacts/import-google', uploadCsv.single('file'), (req, res) => 
 
     // Parsear header para encontrar columnas
     const header = parseCSVLine(lines[0]);
+
+    // Buscar columna de nombre (varias variantes)
     const nameIndex = header.findIndex(h => h === 'Name');
-    const givenNameIndex = header.findIndex(h => h === 'Given Name');
-    const familyNameIndex = header.findIndex(h => h === 'Family Name');
+    let firstNameIndex = header.findIndex(h => h === 'Given Name' || h === 'First Name');
+    const lastNameIndex = header.findIndex(h => h === 'Family Name' || h === 'Last Name');
+
+    // Si no encontró First Name, usar la primera columna (Google a veces la corta)
+    if (firstNameIndex === -1 && header.length > 0) {
+      firstNameIndex = 0;
+    }
 
     // Buscar todas las columnas de teléfono
     const phoneIndices: number[] = [];
@@ -132,8 +139,10 @@ app.post('/api/contacts/import-google', uploadCsv.single('file'), (req, res) => 
     });
 
     if (phoneIndices.length === 0) {
-      return res.status(400).json({ success: false, error: 'No se encontraron columnas de teléfono' });
+      return res.status(400).json({ success: false, error: 'No se encontraron columnas de teléfono. Asegurate de exportar como "Google CSV".' });
     }
+
+    console.log('CSV Headers encontrados:', { nameIndex, firstNameIndex, lastNameIndex, phoneIndices });
 
     let imported = 0;
 
@@ -147,10 +156,10 @@ app.post('/api/contacts/import-google', uploadCsv.single('file'), (req, res) => 
       let name = '';
       if (nameIndex >= 0 && values[nameIndex]) {
         name = values[nameIndex];
-      } else if (givenNameIndex >= 0 || familyNameIndex >= 0) {
-        const given = givenNameIndex >= 0 ? values[givenNameIndex] || '' : '';
-        const family = familyNameIndex >= 0 ? values[familyNameIndex] || '' : '';
-        name = `${given} ${family}`.trim();
+      } else {
+        const firstName = firstNameIndex >= 0 ? values[firstNameIndex] || '' : '';
+        const lastName = lastNameIndex >= 0 ? values[lastNameIndex] || '' : '';
+        name = `${firstName} ${lastName}`.trim();
       }
 
       if (!name) continue;
