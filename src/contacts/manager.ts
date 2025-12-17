@@ -138,6 +138,11 @@ export function addManualContact(phone: string, name: string) {
   saveContacts();
 }
 
+export function clearContacts() {
+  contacts.clear();
+  saveContacts();
+}
+
 export function getContactByPhone(phone: string): ParsedContact | undefined {
   const normalized = phone.replace(/[\s\-\(\)]/g, '');
   return getContacts().find((c) => c.phone.includes(normalized));

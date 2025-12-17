@@ -4,7 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { connectWhatsApp, getSocket, isWhatsAppConnected, getQRCode } from './whatsapp/client.js';
-import { loadContacts, searchContacts, getContacts, addManualContact, markContactUsed } from './contacts/manager.js';
+import { loadContacts, searchContacts, getContacts, addManualContact, markContactUsed, clearContacts } from './contacts/manager.js';
 import { sendMessage, listMediaFiles, getMediaFolder } from './whatsapp/sender.js';
 import { parseTemplate, setTemplate, getTemplate, extractFirstName } from './templates/parser.js';
 
@@ -116,6 +116,9 @@ app.post('/api/contacts/import-google', uploadCsv.single('file'), (req, res) => 
     if (lines.length < 2) {
       return res.status(400).json({ success: false, error: 'CSV vacío' });
     }
+
+    // Borrar contactos existentes antes de importar
+    clearContacts();
 
     // Parsear header para encontrar columnas
     const header = parseCSVLine(lines[0]);
