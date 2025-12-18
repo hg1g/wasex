@@ -260,7 +260,11 @@
         <summary style="cursor: pointer; color: #25D366;">Seleccionar por lista de números</summary>
         <div style="margin-top: 10px; padding: 15px; background: #222; border-radius: 8px;">
           <textarea id="phone-list-input" placeholder="Pegá los números (uno por línea o separados por coma)&#10;5491112345678&#10;5491187654321" style="min-height: 80px;"></textarea>
-          <button class="btn" id="btn-select-by-phones" style="margin-top: 8px;">Seleccionar coincidentes</button>
+          <div style="display: flex; gap: 8px; margin-top: 8px;">
+            <button class="btn" id="btn-select-by-phones">Seleccionar coincidentes</button>
+            <button class="btn btn-secondary" id="btn-add-not-found" style="display: none;">Agregar no encontrados como contactos</button>
+          </div>
+          <p id="phone-match-result" style="color: #888; font-size: 12px; margin-top: 8px;"></p>
         </div>
       </details>
 
@@ -333,6 +337,8 @@
     const btnClearContacts = document.getElementById('btn-clear-contacts');
     const phoneListInput = document.getElementById('phone-list-input');
     const btnSelectByPhones = document.getElementById('btn-select-by-phones');
+    const btnAddNotFound = document.getElementById('btn-add-not-found');
+    const phoneMatchResult = document.getElementById('phone-match-result');
     const broadcastList = document.getElementById('broadcast-list');
     const btnAddToQueue = document.getElementById('btn-add-to-queue');
     const queueList = document.getElementById('queue-list');
@@ -689,6 +695,31 @@
       showToast('Contactos borrados');
     });
 
+    // Normalizar número para comparación (últimos 8-10 dígitos sin código país)
+    function normalizeForCompare(phone) {
+      let p = phone.replace(/[\s\-\(\)\+]/g, '');
+      // Quitar código de país Argentina
+      if (p.startsWith('549')) p = p.substring(3);
+      else if (p.startsWith('54')) p = p.substring(2);
+      // Quitar 0 inicial (código de área local)
+      if (p.startsWith('0')) p = p.substring(1);
+      // Quitar 15 inicial (prefijo móvil local)
+      if (p.startsWith('15')) p = p.substring(2);
+      return p;
+    }
+
+    // Comparar dos números normalizados
+    function phonesMatch(phone1, phone2) {
+      const p1 = normalizeForCompare(phone1);
+      const p2 = normalizeForCompare(phone2);
+      // Comparar los últimos 8 dígitos
+      const last1 = p1.slice(-8);
+      const last2 = p2.slice(-8);
+      return last1 === last2 || p1.endsWith(p2) || p2.endsWith(p1);
+    }
+
+    let lastNotFound = [];
+
     // Seleccionar por lista de números
     btnSelectByPhones.addEventListener('click', () => {
       const input = phoneListInput.value.trim();
@@ -709,25 +740,79 @@
       }
 
       let matched = 0;
+      lastNotFound = [];
       selectedContacts.clear();
 
-      for (const contact of allContacts) {
-        const contactPhone = contact.phone.replace(/[\s\-\(\)\+]/g, '');
-        // Buscar si algún número de la lista coincide (parcial o total)
-        const found = phones.some(p =>
-          contactPhone.includes(p) || p.includes(contactPhone) ||
-          contactPhone.endsWith(p) || p.endsWith(contactPhone)
-        );
+      for (const phone of phones) {
+        let found = false;
+        for (const contact of allContacts) {
+          if (phonesMatch(phone, contact.phone)) {
+            selectedContacts.add(contact.id);
+            found = true;
+            break;
+          }
+        }
         if (found) {
-          selectedContacts.add(contact.id);
           matched++;
+        } else {
+          lastNotFound.push(phone);
         }
       }
 
       renderContacts(allContacts);
       updateSelectedCount();
-      phoneListInput.value = '';
-      showToast(`${matched} contactos seleccionados de ${phones.length} números`);
+
+      const notFoundCount = phones.length - matched;
+      phoneMatchResult.textContent = `${matched} encontrados, ${notFoundCount} no encontrados`;
+
+      if (notFoundCount > 0) {
+        phoneListInput.value = lastNotFound.join('\n');
+        btnAddNotFound.style.display = 'block';
+        btnAddNotFound.textContent = `Agregar ${notFoundCount} como contactos`;
+        phoneMatchResult.style.color = '#f1c40f';
+      } else {
+        phoneListInput.value = '';
+        btnAddNotFound.style.display = 'none';
+        phoneMatchResult.style.color = '#25D366';
+      }
+
+      showToast(`${matched}/${phones.length} seleccionados`);
+    });
+
+    // Agregar no encontrados como contactos nuevos
+    btnAddNotFound.addEventListener('click', async () => {
+      if (lastNotFound.length === 0) return;
+
+      // Crear contactos con los números no encontrados
+      const csv = lastNotFound.map(p => `${p},${p}`).join('\n');
+      const res = await fetch('/api/contacts/import', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ csv })
+      });
+      const data = await res.json();
+
+      if (data.success) {
+        showToast(`${data.imported} contactos agregados`);
+        await loadAllContacts();
+
+        // Seleccionar los recién agregados
+        for (const phone of lastNotFound) {
+          for (const contact of allContacts) {
+            if (phonesMatch(phone, contact.phone)) {
+              selectedContacts.add(contact.id);
+              break;
+            }
+          }
+        }
+        renderContacts(allContacts);
+        updateSelectedCount();
+
+        lastNotFound = [];
+        phoneListInput.value = '';
+        btnAddNotFound.style.display = 'none';
+        phoneMatchResult.textContent = '';
+      }
     });
 
     // Agregar a cola
