@@ -9,6 +9,7 @@ import { Boom } from '@hapi/boom';
 import QRCode from 'qrcode';
 import pino from 'pino';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,8 +18,26 @@ const AUTH_FOLDER = path.join(__dirname, '../../data/auth');
 let socket: WASocket | null = null;
 let isConnected = false;
 let currentQR: string | null = null;
+let sessionErrorCount = 0;
 
 const logger = pino({ level: 'silent' });
+
+// Borrar sesión corrupta
+export function clearSession() {
+  try {
+    if (fs.existsSync(AUTH_FOLDER)) {
+      fs.rmSync(AUTH_FOLDER, { recursive: true, force: true });
+      fs.mkdirSync(AUTH_FOLDER, { recursive: true });
+      console.log('Sesión borrada - escanea QR de nuevo');
+    }
+    isConnected = false;
+    socket = null;
+    currentQR = null;
+    sessionErrorCount = 0;
+  } catch (e) {
+    console.error('Error borrando sesión:', e);
+  }
+}
 
 export async function connectWhatsApp(): Promise<WASocket> {
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
@@ -40,6 +59,20 @@ export async function connectWhatsApp(): Promise<WASocket> {
   });
 
   socket.ev.on('creds.update', saveCreds);
+
+  // Manejar errores de sesión (Bad MAC, etc.)
+  process.on('unhandledRejection', (reason: any) => {
+    const errorMsg = reason?.message || String(reason);
+    if (errorMsg.includes('Bad MAC') || errorMsg.includes('Bad Decrypt')) {
+      sessionErrorCount++;
+      console.error(`Error de sesión (${sessionErrorCount}/3): ${errorMsg}`);
+
+      if (sessionErrorCount >= 3) {
+        console.log('Demasiados errores de sesión - borrando sesión automáticamente...');
+        clearSession();
+      }
+    }
+  });
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {

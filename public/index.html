@@ -192,6 +192,7 @@
         <div class="status-dot" id="status-dot"></div>
         <span id="status-text">Desconectado</span>
         <button class="btn" id="btn-connect" style="margin-left: auto;">Conectar</button>
+        <button class="btn btn-danger" id="btn-reset-session" style="margin-left: 10px; padding: 8px 12px; font-size: 12px;">Reset Sesión</button>
       </div>
       <div id="qr-container" class="hidden">
         <p style="margin-bottom: 15px; color: #888;">Escanea con WhatsApp:</p>
@@ -311,6 +312,7 @@
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const btnConnect = document.getElementById('btn-connect');
+    const btnResetSession = document.getElementById('btn-reset-session');
     const qrContainer = document.getElementById('qr-container');
     const qrImage = document.getElementById('qr-image');
     const templateInput = document.getElementById('template');
@@ -386,6 +388,17 @@
       btnConnect.disabled = true;
       btnConnect.textContent = 'Conectando...';
       await fetch('/api/connect', { method: 'POST' });
+    });
+
+    // Reset sesión
+    btnResetSession.addEventListener('click', async () => {
+      if (!confirm('¿Borrar la sesión de WhatsApp? Tendrás que escanear el QR de nuevo.')) return;
+      await fetch('/api/reset-session', { method: 'POST' });
+      showToast('Sesión borrada. Reinicia el servidor.');
+      statusDot.classList.remove('connected');
+      statusText.textContent = 'Sesión borrada - reinicia servidor';
+      btnConnect.disabled = false;
+      btnConnect.textContent = 'Conectar';
     });
 
     // Detectar cambios en la plantilla

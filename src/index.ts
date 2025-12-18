@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { connectWhatsApp, getSocket, isWhatsAppConnected, getQRCode, getBroadcastLists } from './whatsapp/client.js';
+import { connectWhatsApp, getSocket, isWhatsAppConnected, getQRCode, getBroadcastLists, clearSession } from './whatsapp/client.js';
 import { loadContacts, searchContacts, getContacts, addManualContact, markContactUsed, clearContacts } from './contacts/manager.js';
 import { sendMessage, listMediaFiles, getMediaFolder } from './whatsapp/sender.js';
 import { parseTemplate, setTemplate, getTemplate, extractFirstName } from './templates/parser.js';
@@ -66,6 +66,12 @@ app.post('/api/connect', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, error: String(error) });
   }
+});
+
+// Resetear sesión de WhatsApp
+app.post('/api/reset-session', (req, res) => {
+  clearSession();
+  res.json({ success: true, message: 'Sesión borrada. Reinicia el servidor y escanea QR.' });
 });
 
 // Listar todos los contactos
