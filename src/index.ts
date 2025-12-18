@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
-import { connectWhatsApp, getSocket, isWhatsAppConnected, getQRCode } from './whatsapp/client.js';
+import { connectWhatsApp, getSocket, isWhatsAppConnected, getQRCode, getBroadcastLists } from './whatsapp/client.js';
 import { loadContacts, searchContacts, getContacts, addManualContact, markContactUsed, clearContacts } from './contacts/manager.js';
 import { sendMessage, listMediaFiles, getMediaFolder } from './whatsapp/sender.js';
 import { parseTemplate, setTemplate, getTemplate, extractFirstName } from './templates/parser.js';
@@ -76,6 +76,15 @@ app.get('/api/contacts', (req, res) => {
   } else {
     res.json(getContacts()); // Todos los contactos
   }
+});
+
+// Obtener listas de difusión
+app.get('/api/broadcasts', async (req, res) => {
+  if (!isWhatsAppConnected()) {
+    return res.json([]);
+  }
+  const lists = await getBroadcastLists();
+  res.json(lists);
 });
 
 // Importar contactos desde CSV

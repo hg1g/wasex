@@ -47,6 +47,7 @@
     .btn:disabled { background: #444; cursor: not-allowed; }
     .btn-secondary { background: #333; }
     .btn-secondary:hover { background: #444; }
+    .btn-secondary.selected { background: #25D366; color: #000; }
     .btn-danger { background: #ff4444; }
 
     input, textarea {
@@ -224,6 +225,14 @@
     <div class="card">
       <h2>4. SELECCIONAR CONTACTOS <span class="selected-count" id="selected-count">0 seleccionados</span></h2>
 
+      <!-- Listas de difusión -->
+      <div id="broadcast-section" style="margin-bottom: 15px;">
+        <p style="color: #888; font-size: 13px; margin-bottom: 8px;">Listas de difusión de WhatsApp:</p>
+        <div id="broadcast-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+          <span style="color: #666; font-size: 13px;">Cargando...</span>
+        </div>
+      </div>
+
       <details style="margin-bottom: 15px;">
         <summary style="cursor: pointer; color: #25D366;">Importar desde Google Contacts</summary>
         <div style="margin-top: 10px; padding: 15px; background: #222; border-radius: 8px;">
@@ -310,6 +319,7 @@
     const btnImportGoogle = document.getElementById('btn-import-google');
     const btnSelectAll = document.getElementById('btn-select-all');
     const btnDeselectAll = document.getElementById('btn-deselect-all');
+    const broadcastList = document.getElementById('broadcast-list');
     const btnAddToQueue = document.getElementById('btn-add-to-queue');
     const queueList = document.getElementById('queue-list');
     const btnClearQueue = document.getElementById('btn-clear-queue');
@@ -485,6 +495,60 @@
       const res = await fetch('/api/contacts');
       allContacts = await res.json();
       renderContacts(allContacts);
+    }
+
+    // Listas de difusión
+    let broadcastLists = [];
+    let activeBroadcast = null;
+
+    async function loadBroadcastLists() {
+      try {
+        const res = await fetch('/api/broadcasts');
+        broadcastLists = await res.json();
+        renderBroadcastLists();
+      } catch (e) {
+        broadcastList.innerHTML = '<span style="color: #666;">No disponible</span>';
+      }
+    }
+
+    function renderBroadcastLists() {
+      if (broadcastLists.length === 0) {
+        broadcastList.innerHTML = '<span style="color: #666; font-size: 13px;">No hay listas de difusión</span>';
+        return;
+      }
+
+      broadcastList.innerHTML = `
+        <button class="btn btn-secondary ${!activeBroadcast ? 'selected' : ''}" data-broadcast="all" style="padding: 8px 12px; font-size: 12px;">
+          Todos (${allContacts.length})
+        </button>
+        ${broadcastLists.map(b => `
+          <button class="btn btn-secondary ${activeBroadcast === b.id ? 'selected' : ''}" data-broadcast="${b.id}" style="padding: 8px 12px; font-size: 12px;">
+            ${b.name} (${b.recipients.length})
+          </button>
+        `).join('')}
+      `;
+
+      broadcastList.querySelectorAll('button').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const broadcastId = btn.dataset.broadcast;
+          if (broadcastId === 'all') {
+            activeBroadcast = null;
+            renderContacts(allContacts);
+          } else {
+            activeBroadcast = broadcastId;
+            const list = broadcastLists.find(b => b.id === broadcastId);
+            if (list) {
+              // Filtrar contactos que están en esta lista
+              const filtered = allContacts.filter(c =>
+                list.recipients.some(r => r.includes(c.phone) || c.id.includes(r.replace('@s.whatsapp.net', '')))
+              );
+              renderContacts(filtered);
+              showToast(`Mostrando ${filtered.length} contactos de "${list.name}"`);
+            }
+          }
+          renderBroadcastLists(); // Actualizar estado visual
+        });
+      });
     }
 
     function renderContacts(contacts) {
@@ -768,7 +832,7 @@
     // Inicializar
     updateStatus();
     loadMediaFiles();
-    loadAllContacts();
+    loadAllContacts().then(() => loadBroadcastLists());
     setInterval(updateStatus, 2000);
   </script>
 </body>

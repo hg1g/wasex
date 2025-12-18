@@ -92,3 +92,30 @@ export function isWhatsAppConnected(): boolean {
 export function getQRCode(): string | null {
   return currentQR;
 }
+
+// Obtener listas de difusión
+export async function getBroadcastLists(): Promise<Array<{ id: string; name: string; recipients: string[] }>> {
+  if (!socket) return [];
+
+  try {
+    // Obtener todos los chats
+    const store = await socket.groupFetchAllParticipating();
+    const broadcasts: Array<{ id: string; name: string; recipients: string[] }> = [];
+
+    // Los broadcast tienen JID terminado en @broadcast
+    for (const [jid, data] of Object.entries(store)) {
+      if (jid.endsWith('@broadcast')) {
+        broadcasts.push({
+          id: jid,
+          name: (data as any).subject || 'Lista sin nombre',
+          recipients: ((data as any).participants || []).map((p: any) => p.id),
+        });
+      }
+    }
+
+    return broadcasts;
+  } catch (e) {
+    console.error('Error obteniendo listas de difusión:', e);
+    return [];
+  }
+}
