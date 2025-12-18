@@ -39,7 +39,35 @@ export function clearSession() {
   }
 }
 
+// Validar sesión antes de conectar
+function validateSession(): boolean {
+  try {
+    const credsPath = path.join(AUTH_FOLDER, 'creds.json');
+    if (!fs.existsSync(credsPath)) {
+      return true; // No hay sesión, está ok
+    }
+
+    const creds = JSON.parse(fs.readFileSync(credsPath, 'utf-8'));
+
+    // Verificar que tenga los campos mínimos necesarios
+    if (!creds.me || !creds.noiseKey || !creds.signedIdentityKey) {
+      console.log('Sesión incompleta detectada, limpiando...');
+      return false;
+    }
+
+    return true;
+  } catch (e) {
+    console.log('Sesión corrupta detectada, limpiando...');
+    return false;
+  }
+}
+
 export async function connectWhatsApp(): Promise<WASocket> {
+  // Validar sesión antes de conectar
+  if (!validateSession()) {
+    clearSession();
+  }
+
   const { state, saveCreds } = await useMultiFileAuthState(AUTH_FOLDER);
   const { version } = await fetchLatestBaileysVersion();
 
