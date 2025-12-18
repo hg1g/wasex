@@ -749,9 +749,9 @@
         return;
       }
 
-      // Parsear números (separados por línea, coma, espacio, punto y coma)
+      // Parsear números (separados por línea, coma, espacio, punto y coma, guiones)
       const phones = input
-        .split(/[\n,;\s]+/)
+        .split(/[\n,;]+/)
         .map(p => p.replace(/[\s\-\(\)\+]/g, ''))
         .filter(p => p.length >= 8);
 
@@ -760,22 +760,21 @@
         return;
       }
 
-      let matched = 0;
       lastNotFound = [];
       selectedContacts.clear();
+      const matchedPhones = new Set(); // Para trackear qué números matchearon
 
       for (const phone of phones) {
         let found = false;
         for (const contact of allContacts) {
           if (phonesMatch(phone, contact.phone)) {
             selectedContacts.add(contact.id);
+            matchedPhones.add(phone);
             found = true;
             break;
           }
         }
-        if (found) {
-          matched++;
-        } else {
+        if (!found) {
           lastNotFound.push(phone);
         }
       }
@@ -783,8 +782,19 @@
       renderContacts(allContacts);
       updateSelectedCount();
 
-      const notFoundCount = phones.length - matched;
-      phoneMatchResult.textContent = `${matched} encontrados, ${notFoundCount} no encontrados`;
+      const uniqueContacts = selectedContacts.size;
+      const totalNumbers = phones.length;
+      const notFoundCount = lastNotFound.length;
+      const duplicates = matchedPhones.size - uniqueContacts;
+
+      let resultText = `${uniqueContacts} contactos seleccionados de ${totalNumbers} números`;
+      if (notFoundCount > 0) {
+        resultText += `, ${notFoundCount} no encontrados`;
+      }
+      if (duplicates > 0) {
+        resultText += ` (${matchedPhones.size - duplicates} duplicados)`;
+      }
+      phoneMatchResult.textContent = resultText;
 
       if (notFoundCount > 0) {
         phoneListInput.value = lastNotFound.join('\n');
@@ -797,7 +807,7 @@
         phoneMatchResult.style.color = '#25D366';
       }
 
-      showToast(`${matched}/${phones.length} seleccionados`);
+      showToast(`${uniqueContacts} contactos seleccionados`);
     });
 
     // Agregar no encontrados como contactos nuevos
