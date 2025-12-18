@@ -259,6 +259,7 @@
         <input type="text" id="search-input" placeholder="Filtrar contactos..." style="flex: 1;">
         <button class="btn btn-secondary" id="btn-select-all">Seleccionar todos</button>
         <button class="btn btn-secondary" id="btn-deselect-all">Deseleccionar</button>
+        <button class="btn btn-danger" id="btn-clear-contacts" style="padding: 8px 12px;">Borrar contactos</button>
       </div>
 
       <p id="contacts-count" style="color: #666; font-size: 12px; margin: 10px 0;"></p>
@@ -319,6 +320,7 @@
     const btnImportGoogle = document.getElementById('btn-import-google');
     const btnSelectAll = document.getElementById('btn-select-all');
     const btnDeselectAll = document.getElementById('btn-deselect-all');
+    const btnClearContacts = document.getElementById('btn-clear-contacts');
     const broadcastList = document.getElementById('broadcast-list');
     const btnAddToQueue = document.getElementById('btn-add-to-queue');
     const queueList = document.getElementById('queue-list');
@@ -651,6 +653,17 @@
         el.querySelector('input').checked = false;
       });
       updateSelectedCount();
+    });
+
+    // Borrar todos los contactos
+    btnClearContacts.addEventListener('click', async () => {
+      if (!confirm('¿Borrar todos los contactos?')) return;
+      await fetch('/api/contacts/clear', { method: 'POST' });
+      allContacts = [];
+      selectedContacts.clear();
+      renderContacts([]);
+      updateSelectedCount();
+      showToast('Contactos borrados');
     });
 
     // Agregar a cola

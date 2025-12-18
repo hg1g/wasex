@@ -78,6 +78,12 @@ app.get('/api/contacts', (req, res) => {
   }
 });
 
+// Borrar todos los contactos
+app.post('/api/contacts/clear', (req, res) => {
+  clearContacts();
+  res.json({ success: true });
+});
+
 // Obtener listas de difusión
 app.get('/api/broadcasts', async (req, res) => {
   if (!isWhatsAppConnected()) {
