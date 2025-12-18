@@ -224,7 +224,7 @@
 
     <!-- Contactos -->
     <div class="card">
-      <h2>4. SELECCIONAR CONTACTOS <span class="selected-count" id="selected-count">0 seleccionados</span></h2>
+      <h2>4. SELECCIONAR CONTACTOS</h2>
 
       <!-- Listas de difusión -->
       <div id="broadcast-section" style="margin-bottom: 15px;">
@@ -275,7 +275,12 @@
         <button class="btn btn-danger" id="btn-clear-contacts" style="padding: 8px 12px;">Borrar contactos</button>
       </div>
 
-      <p id="contacts-count" style="color: #666; font-size: 12px; margin: 10px 0;"></p>
+      <div style="display: flex; justify-content: space-between; align-items: center; margin: 10px 0;">
+        <p id="contacts-count" style="color: #666; font-size: 12px; margin: 0;"></p>
+        <div id="selection-badge" style="background: #25D366; color: #000; padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 14px;">
+          0 seleccionados
+        </div>
+      </div>
       <div class="contact-list" id="contact-list"></div>
 
       <button class="btn" id="btn-add-to-queue" style="margin-top: 15px; width: 100%;">
@@ -333,7 +338,7 @@
     const searchInput = document.getElementById('search-input');
     const contactList = document.getElementById('contact-list');
     const contactsCount = document.getElementById('contacts-count');
-    const selectedCount = document.getElementById('selected-count');
+    const selectionBadge = document.getElementById('selection-badge');
     const csvInput = document.getElementById('csv-input');
     const btnImportCsv = document.getElementById('btn-import-csv');
     const googleCsvInput = document.getElementById('google-csv-input');
@@ -662,7 +667,13 @@
     }
 
     function updateSelectedCount() {
-      selectedCount.textContent = `${selectedContacts.size} seleccionados`;
+      selectionBadge.textContent = `${selectedContacts.size} seleccionados`;
+      // Cambiar color si hay seleccionados
+      if (selectedContacts.size > 0) {
+        selectionBadge.style.background = '#25D366';
+      } else {
+        selectionBadge.style.background = '#333';
+      }
     }
 
     // Filtrar
@@ -892,14 +903,20 @@
         return;
       }
 
-      queueList.innerHTML = messageQueue.map((item, index) => `
-        <div class="queue-item" data-index="${index}">
+      // Ordenar: pendientes/enviando primero, luego enviados, luego errores
+      const statusOrder = { 'sending': 0, 'pending': 1, 'sent': 2, 'error': 3 };
+      const sortedQueue = messageQueue
+        .map((item, index) => ({ ...item, originalIndex: index }))
+        .sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
+
+      queueList.innerHTML = sortedQueue.map((item) => `
+        <div class="queue-item" data-index="${item.originalIndex}">
           <div class="queue-item-header">
             <span class="queue-item-name">${item.contact.name}</span>
             <span class="queue-item-status ${item.status}">${getStatusText(item.status)}</span>
-            ${item.status === 'pending' ? `<button class="btn btn-remove" data-index="${index}">Quitar</button>` : ''}
+            ${item.status === 'pending' ? `<button class="btn btn-remove" data-index="${item.originalIndex}">Quitar</button>` : ''}
           </div>
-          <textarea ${item.status !== 'pending' ? 'disabled' : ''} data-index="${index}">${item.message}</textarea>
+          <textarea ${item.status !== 'pending' ? 'disabled' : ''} data-index="${item.originalIndex}">${item.message}</textarea>
         </div>
       `).join('');
 
