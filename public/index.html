@@ -286,6 +286,12 @@
     <!-- Cola de envio -->
     <div class="card" id="queue-section">
       <h2>5. COLA DE ENVIO</h2>
+      <div id="queue-stats" style="display: flex; gap: 15px; margin-bottom: 15px; font-size: 14px;">
+        <span>Total: <strong id="queue-total">0</strong></span>
+        <span style="color: #25D366;">Enviados: <strong id="queue-sent">0</strong></span>
+        <span style="color: #f1c40f;">Pendientes: <strong id="queue-pending">0</strong></span>
+        <span style="color: #ff4444;">Errores: <strong id="queue-errors">0</strong></span>
+      </div>
       <div class="queue-list" id="queue-list">
         <p style="color: #666; text-align: center;">No hay mensajes en la cola</p>
       </div>
@@ -347,6 +353,10 @@
     const progressBar = document.getElementById('progress-bar');
     const progressFill = document.getElementById('progress-fill');
     const progressText = document.getElementById('progress-text');
+    const queueTotal = document.getElementById('queue-total');
+    const queueSent = document.getElementById('queue-sent');
+    const queuePending = document.getElementById('queue-pending');
+    const queueErrors = document.getElementById('queue-errors');
     const mainContent = document.getElementById('main-content');
 
     // Toast
@@ -860,8 +870,23 @@
       updateSelectedCount();
     });
 
+    // Actualizar estadísticas de la cola
+    function updateQueueStats() {
+      const total = messageQueue.length;
+      const sent = messageQueue.filter(m => m.status === 'sent').length;
+      const pending = messageQueue.filter(m => m.status === 'pending' || m.status === 'sending').length;
+      const errors = messageQueue.filter(m => m.status === 'error').length;
+
+      queueTotal.textContent = total;
+      queueSent.textContent = sent;
+      queuePending.textContent = pending;
+      queueErrors.textContent = errors;
+    }
+
     // Renderizar cola
     function renderQueue() {
+      updateQueueStats();
+
       if (messageQueue.length === 0) {
         queueList.innerHTML = '<p style="color: #666; text-align: center;">No hay mensajes en la cola</p>';
         return;
