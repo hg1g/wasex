@@ -255,6 +255,14 @@
         </div>
       </details>
 
+      <details style="margin-bottom: 15px;">
+        <summary style="cursor: pointer; color: #25D366;">Seleccionar por lista de números</summary>
+        <div style="margin-top: 10px; padding: 15px; background: #222; border-radius: 8px;">
+          <textarea id="phone-list-input" placeholder="Pegá los números (uno por línea o separados por coma)&#10;5491112345678&#10;5491187654321" style="min-height: 80px;"></textarea>
+          <button class="btn" id="btn-select-by-phones" style="margin-top: 8px;">Seleccionar coincidentes</button>
+        </div>
+      </details>
+
       <div style="display: flex; gap: 10px; margin-bottom: 10px;">
         <input type="text" id="search-input" placeholder="Filtrar contactos..." style="flex: 1;">
         <button class="btn btn-secondary" id="btn-select-all">Seleccionar todos</button>
@@ -321,6 +329,8 @@
     const btnSelectAll = document.getElementById('btn-select-all');
     const btnDeselectAll = document.getElementById('btn-deselect-all');
     const btnClearContacts = document.getElementById('btn-clear-contacts');
+    const phoneListInput = document.getElementById('phone-list-input');
+    const btnSelectByPhones = document.getElementById('btn-select-by-phones');
     const broadcastList = document.getElementById('broadcast-list');
     const btnAddToQueue = document.getElementById('btn-add-to-queue');
     const queueList = document.getElementById('queue-list');
@@ -664,6 +674,47 @@
       renderContacts([]);
       updateSelectedCount();
       showToast('Contactos borrados');
+    });
+
+    // Seleccionar por lista de números
+    btnSelectByPhones.addEventListener('click', () => {
+      const input = phoneListInput.value.trim();
+      if (!input) {
+        showToast('Pegá los números primero', true);
+        return;
+      }
+
+      // Parsear números (separados por línea, coma, espacio, punto y coma)
+      const phones = input
+        .split(/[\n,;\s]+/)
+        .map(p => p.replace(/[\s\-\(\)\+]/g, ''))
+        .filter(p => p.length >= 8);
+
+      if (phones.length === 0) {
+        showToast('No se encontraron números válidos', true);
+        return;
+      }
+
+      let matched = 0;
+      selectedContacts.clear();
+
+      for (const contact of allContacts) {
+        const contactPhone = contact.phone.replace(/[\s\-\(\)\+]/g, '');
+        // Buscar si algún número de la lista coincide (parcial o total)
+        const found = phones.some(p =>
+          contactPhone.includes(p) || p.includes(contactPhone) ||
+          contactPhone.endsWith(p) || p.endsWith(contactPhone)
+        );
+        if (found) {
+          selectedContacts.add(contact.id);
+          matched++;
+        }
+      }
+
+      renderContacts(allContacts);
+      updateSelectedCount();
+      phoneListInput.value = '';
+      showToast(`${matched} contactos seleccionados de ${phones.length} números`);
     });
 
     // Agregar a cola
