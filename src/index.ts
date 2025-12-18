@@ -126,9 +126,6 @@ app.post('/api/contacts/import-google', uploadCsv.single('file'), (req, res) => 
       return res.status(400).json({ success: false, error: 'CSV vacío' });
     }
 
-    // Borrar contactos existentes antes de importar
-    clearContacts();
-
     // Parsear header para encontrar columnas
     const header = parseCSVLine(lines[0]);
 
