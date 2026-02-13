@@ -12,7 +12,7 @@
       color: #fff;
       min-height: 100vh;
     }
-    .container { max-width: 1000px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
     h1 { text-align: center; margin-bottom: 30px; color: #25D366; }
 
     .card {
@@ -49,6 +49,8 @@
     .btn-secondary:hover { background: #444; }
     .btn-secondary.selected { background: #25D366; color: #000; }
     .btn-danger { background: #ff4444; }
+    .btn-warning { background: #f39c12; }
+    .btn-warning:hover { background: #e67e22; }
 
     input, textarea {
       width: 100%;
@@ -82,6 +84,18 @@
     }
     .contact-name { font-weight: 500; }
     .contact-phone { color: #888; font-size: 13px; }
+    .contact-divider {
+      padding: 10px;
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      background: #1a1a1a;
+      border-top: 1px solid #333;
+      border-bottom: 1px solid #333;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
 
     .media-list { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
     .media-item {
@@ -125,34 +139,107 @@
     .upload-zone:hover { border-color: #25D366; }
     .upload-zone input { display: none; }
 
-    /* Queue de mensajes */
-    .queue-list { max-height: 300px; overflow-y: auto; }
+    /* Queue de mensajes - Grid de cards */
+    .queue-list {
+      max-height: 400px;
+      overflow-y: auto;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 8px;
+      padding: 4px;
+    }
+    .queue-list:empty, .queue-list p {
+      grid-column: 1 / -1;
+    }
     .queue-item {
       background: #222;
       border-radius: 8px;
-      padding: 12px;
-      margin-bottom: 10px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: relative;
+      border-left: 3px solid #888;
+      min-height: 80px;
     }
+    .queue-item.sending { border-left-color: #f1c40f; background: #2a2a1a; }
+    .queue-item.sent { border-left-color: #25D366; opacity: 0.7; }
+    .queue-item.error { border-left-color: #ff4444; background: #2a1a1a; }
     .queue-item-header {
       display: flex;
       justify-content: space-between;
-      margin-bottom: 8px;
+      align-items: center;
     }
-    .queue-item-name { font-weight: 600; color: #25D366; }
-    .queue-item-status { font-size: 12px; }
+    .queue-item-name {
+      font-weight: 600;
+      color: #25D366;
+      font-size: 13px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+    .queue-item-status { font-size: 11px; }
     .queue-item-status.pending { color: #888; }
     .queue-item-status.sending { color: #f1c40f; }
     .queue-item-status.sent { color: #25D366; }
     .queue-item-status.error { color: #ff4444; }
-    .queue-item textarea {
-      min-height: 60px;
-      font-size: 13px;
+    .queue-item-preview {
+      font-size: 11px;
+      color: #888;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 3;
+      -webkit-box-orient: vertical;
+      line-height: 1.4;
+      flex: 1;
     }
     .queue-item .btn-remove {
       background: transparent;
       color: #ff4444;
-      padding: 4px 8px;
-      font-size: 12px;
+      padding: 2px 6px;
+      font-size: 11px;
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .queue-item:hover .btn-remove { opacity: 1; }
+    .queue-item { cursor: pointer; }
+    .queue-item:hover { background: #2a2a2a; }
+
+    /* Modal edición mensaje */
+    .edit-modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+    .edit-modal.active { display: flex; }
+    .edit-modal-content {
+      background: #1a1a1a;
+      border-radius: 12px;
+      padding: 20px;
+      width: 90%;
+      max-width: 500px;
+    }
+    .edit-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+    }
+    .edit-modal-header h3 { color: #25D366; margin: 0; }
+    .edit-modal-close {
+      background: transparent;
+      border: none;
+      color: #888;
+      font-size: 24px;
+      cursor: pointer;
     }
 
     /* Progress bar */
@@ -262,7 +349,7 @@
           <textarea id="phone-list-input" placeholder="Pegá los números (uno por línea o separados por coma)&#10;5491112345678&#10;5491187654321" style="min-height: 80px;"></textarea>
           <div style="display: flex; gap: 8px; margin-top: 8px;">
             <button class="btn" id="btn-select-by-phones">Seleccionar coincidentes</button>
-            <button class="btn btn-secondary" id="btn-add-not-found" style="display: none;">Agregar no encontrados como contactos</button>
+            <button class="btn" id="btn-add-not-found" style="display: none; background: #f39c12;"></button>
           </div>
           <p id="phone-match-result" style="color: #888; font-size: 12px; margin-top: 8px;"></p>
         </div>
@@ -308,6 +395,8 @@
 
       <div style="display: flex; gap: 10px; margin-top: 15px;">
         <button class="btn btn-secondary" id="btn-clear-queue">Limpiar cola</button>
+        <button class="btn btn-warning hidden" id="btn-pause">Pausar</button>
+        <button class="btn hidden" id="btn-resume">Reanudar</button>
         <button class="btn" id="btn-send-all" style="flex: 1;">
           ENVIAR TODOS (con delay anti-ban)
         </button>
@@ -316,12 +405,25 @@
     </div><!-- cierre main-content -->
   </div>
 
+  <!-- Modal edición mensaje -->
+  <div class="edit-modal" id="edit-modal">
+    <div class="edit-modal-content">
+      <div class="edit-modal-header">
+        <h3 id="edit-modal-title">Editar mensaje</h3>
+        <button class="edit-modal-close" id="edit-modal-close">×</button>
+      </div>
+      <textarea id="edit-modal-text" style="min-height: 150px;"></textarea>
+      <button class="btn" id="edit-modal-save" style="margin-top: 15px; width: 100%;">Guardar</button>
+    </div>
+  </div>
+
   <script>
     // Estado
     let allContacts = [];
     let selectedContacts = new Set();
     let messageQueue = []; // {contact, message, status}
     let isSending = false;
+    let isPaused = false;
 
     // Elementos
     const statusDot = document.getElementById('status-dot');
@@ -354,6 +456,8 @@
     const btnAddToQueue = document.getElementById('btn-add-to-queue');
     const queueList = document.getElementById('queue-list');
     const btnClearQueue = document.getElementById('btn-clear-queue');
+    const btnPause = document.getElementById('btn-pause');
+    const btnResume = document.getElementById('btn-resume');
     const btnSendAll = document.getElementById('btn-send-all');
     const progressBar = document.getElementById('progress-bar');
     const progressFill = document.getElementById('progress-fill');
@@ -363,6 +467,29 @@
     const queuePending = document.getElementById('queue-pending');
     const queueErrors = document.getElementById('queue-errors');
     const mainContent = document.getElementById('main-content');
+    const editModal = document.getElementById('edit-modal');
+    const editModalTitle = document.getElementById('edit-modal-title');
+    const editModalText = document.getElementById('edit-modal-text');
+    const editModalSave = document.getElementById('edit-modal-save');
+    const editModalClose = document.getElementById('edit-modal-close');
+    let editingIndex = null;
+
+    // LocalStorage para contactos seleccionados
+    function saveSelectedContacts() {
+      localStorage.setItem('wasex_selectedContacts', JSON.stringify([...selectedContacts]));
+    }
+
+    function loadSelectedContacts() {
+      try {
+        const saved = localStorage.getItem('wasex_selectedContacts');
+        if (saved) {
+          const ids = JSON.parse(saved);
+          selectedContacts = new Set(ids);
+        }
+      } catch (e) {
+        console.error('Error cargando contactos seleccionados:', e);
+      }
+    }
 
     // Toast
     function showToast(message, isError = false) {
@@ -462,14 +589,22 @@
     async function loadMediaFiles() {
       const res = await fetch('/api/media');
       const files = await res.json();
-      mediaList.innerHTML = files.map(f => `
+      const hasSelected = files.some(f => f.selected);
+
+      // Opción "Sin flyer" + archivos
+      mediaList.innerHTML = `
+        <div class="media-item ${!hasSelected ? 'selected' : ''}" data-name="">
+          ❌ Sin flyer
+        </div>
+      ` + files.map(f => `
         <div class="media-item ${f.selected ? 'selected' : ''}" data-name="${f.name}">
-          ${f.type === 'video' ? '[VIDEO]' : '[IMG]'} ${f.name}
+          ${f.type === 'video' ? '🎬' : '🖼️'} ${f.name}
         </div>
       `).join('');
+
       mediaList.querySelectorAll('.media-item').forEach(el => {
         el.addEventListener('click', async () => {
-          const filename = el.dataset.name;
+          const filename = el.dataset.name || null;
           await fetch('/api/media/select', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -540,7 +675,11 @@
     async function loadAllContacts() {
       const res = await fetch('/api/contacts');
       allContacts = await res.json();
+      // Filtrar seleccionados que ya no existen
+      const validIds = new Set(allContacts.map(c => c.id));
+      selectedContacts = new Set([...selectedContacts].filter(id => validIds.has(id)));
       renderContacts(allContacts);
+      updateSelectedCount();
     }
 
     // Listas de difusión
@@ -599,7 +738,33 @@
 
     function renderContacts(contacts) {
       contactsCount.textContent = `Mostrando ${contacts.length} contactos`;
-      contactList.innerHTML = contacts.map(c => `
+
+      // Separar contactos usados de no usados
+      const usados = contacts.filter(c => (c.useCount || 0) > 0);
+      const noUsados = contacts.filter(c => (c.useCount || 0) === 0);
+
+      let html = '';
+
+      // Renderizar usados
+      if (usados.length > 0) {
+        html += usados.map(c => `
+          <div class="contact-item ${selectedContacts.has(c.id) ? 'selected' : ''}" data-id="${c.id}" data-name="${c.name}" data-phone="${c.phone}">
+            <input type="checkbox" ${selectedContacts.has(c.id) ? 'checked' : ''}>
+            <div>
+              <div class="contact-name">${c.name} <span style="color: #25D366; font-size: 11px;">(${c.useCount})</span></div>
+              <div class="contact-phone">${c.phone}</div>
+            </div>
+          </div>
+        `).join('');
+
+        // Divider si hay no usados
+        if (noUsados.length > 0) {
+          html += `<div class="contact-divider">── Nunca enviados (${noUsados.length}) ──</div>`;
+        }
+      }
+
+      // Renderizar no usados
+      html += noUsados.map(c => `
         <div class="contact-item ${selectedContacts.has(c.id) ? 'selected' : ''}" data-id="${c.id}" data-name="${c.name}" data-phone="${c.phone}">
           <input type="checkbox" ${selectedContacts.has(c.id) ? 'checked' : ''}>
           <div>
@@ -608,6 +773,8 @@
           </div>
         </div>
       `).join('');
+
+      contactList.innerHTML = html;
 
       contactList.querySelectorAll('.contact-item').forEach(el => {
         el.addEventListener('click', (e) => {
@@ -674,6 +841,8 @@
       } else {
         selectionBadge.style.background = '#333';
       }
+      // Guardar en localStorage
+      saveSelectedContacts();
     }
 
     // Filtrar
@@ -733,6 +902,8 @@
     function phonesMatch(phone1, phone2) {
       const p1 = normalizeForCompare(phone1);
       const p2 = normalizeForCompare(phone2);
+      // Ignorar números muy cortos (evita matches con contactos corruptos)
+      if (p1.length < 6 || p2.length < 6) return false;
       // Comparar los últimos 8 dígitos
       const last1 = p1.slice(-8);
       const last2 = p2.slice(-8);
@@ -784,22 +955,16 @@
 
       const uniqueContacts = selectedContacts.size;
       const totalNumbers = phones.length;
+      const matchedCount = matchedPhones.size;
       const notFoundCount = lastNotFound.length;
-      const duplicates = matchedPhones.size - uniqueContacts;
 
-      let resultText = `${uniqueContacts} contactos seleccionados de ${totalNumbers} números`;
-      if (notFoundCount > 0) {
-        resultText += `, ${notFoundCount} no encontrados`;
-      }
-      if (duplicates > 0) {
-        resultText += ` (${matchedPhones.size - duplicates} duplicados)`;
-      }
+      let resultText = `${totalNumbers} números → ${uniqueContacts} contactos encontrados, ${notFoundCount} no encontrados`;
       phoneMatchResult.textContent = resultText;
 
       if (notFoundCount > 0) {
         phoneListInput.value = lastNotFound.join('\n');
         btnAddNotFound.style.display = 'block';
-        btnAddNotFound.textContent = `Agregar ${notFoundCount} como contactos`;
+        btnAddNotFound.textContent = `Agregar ${notFoundCount} faltantes y seleccionarlos`;
         phoneMatchResult.style.color = '#f1c40f';
       } else {
         phoneListInput.value = '';
@@ -824,14 +989,15 @@
       const data = await res.json();
 
       if (data.success) {
-        showToast(`${data.imported} contactos agregados`);
         await loadAllContacts();
 
         // Seleccionar los recién agregados
+        let addedCount = 0;
         for (const phone of lastNotFound) {
           for (const contact of allContacts) {
             if (phonesMatch(phone, contact.phone)) {
               selectedContacts.add(contact.id);
+              addedCount++;
               break;
             }
           }
@@ -839,10 +1005,13 @@
         renderContacts(allContacts);
         updateSelectedCount();
 
+        showToast(`${addedCount} contactos agregados y seleccionados`);
+        phoneMatchResult.textContent = `${selectedContacts.size} contactos seleccionados en total`;
+        phoneMatchResult.style.color = '#25D366';
+
         lastNotFound = [];
         phoneListInput.value = '';
         btnAddNotFound.style.display = 'none';
-        phoneMatchResult.textContent = '';
       }
     });
 
@@ -919,34 +1088,69 @@
         .map((item, index) => ({ ...item, originalIndex: index }))
         .sort((a, b) => statusOrder[a.status] - statusOrder[b.status]);
 
-      queueList.innerHTML = sortedQueue.map((item) => `
-        <div class="queue-item" data-index="${item.originalIndex}">
+      queueList.innerHTML = sortedQueue.map((item) => {
+        const preview = item.message.substring(0, 120) + (item.message.length > 120 ? '...' : '');
+        return `
+        <div class="queue-item ${item.status}" data-index="${item.originalIndex}" title="${item.message.replace(/"/g, '&quot;')}">
           <div class="queue-item-header">
-            <span class="queue-item-name">${item.contact.name}</span>
+            <span class="queue-item-name" title="${item.contact.name}">${item.contact.name}</span>
             <span class="queue-item-status ${item.status}">${getStatusText(item.status)}</span>
-            ${item.status === 'pending' ? `<button class="btn btn-remove" data-index="${item.originalIndex}">Quitar</button>` : ''}
           </div>
-          <textarea ${item.status !== 'pending' ? 'disabled' : ''} data-index="${item.originalIndex}">${item.message}</textarea>
+          <div class="queue-item-preview">${preview}</div>
+          ${item.status === 'pending' ? `<button class="btn btn-remove" data-index="${item.originalIndex}">✕</button>` : ''}
         </div>
-      `).join('');
-
-      // Event listeners para editar mensajes
-      queueList.querySelectorAll('textarea').forEach(ta => {
-        ta.addEventListener('input', (e) => {
-          const idx = parseInt(e.target.dataset.index);
-          messageQueue[idx].message = e.target.value;
-        });
-      });
+      `}).join('');
 
       // Event listeners para quitar
       queueList.querySelectorAll('.btn-remove').forEach(btn => {
         btn.addEventListener('click', (e) => {
+          e.stopPropagation();
           const idx = parseInt(e.target.dataset.index);
           messageQueue.splice(idx, 1);
           renderQueue();
         });
       });
+
+      // Event listeners para editar (click en card)
+      queueList.querySelectorAll('.queue-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+          if (e.target.classList.contains('btn-remove')) return;
+          const idx = parseInt(item.dataset.index);
+          openEditModal(idx);
+        });
+      });
     }
+
+    // Modal de edición
+    function openEditModal(index) {
+      editingIndex = index;
+      const item = messageQueue[index];
+      editModalTitle.textContent = `Editar: ${item.contact.name}`;
+      editModalText.value = item.message;
+      editModal.classList.add('active');
+      editModalText.focus();
+      editModalText.setSelectionRange(0, 0);
+      editModalText.scrollTop = 0;
+    }
+
+    function closeEditModal() {
+      editModal.classList.remove('active');
+      editingIndex = null;
+    }
+
+    editModalClose.addEventListener('click', closeEditModal);
+    editModal.addEventListener('click', (e) => {
+      if (e.target === editModal) closeEditModal();
+    });
+
+    editModalSave.addEventListener('click', () => {
+      if (editingIndex !== null) {
+        messageQueue[editingIndex].message = editModalText.value;
+        renderQueue();
+        closeEditModal();
+        showToast('Mensaje actualizado');
+      }
+    });
 
     function getStatusText(status) {
       switch(status) {
@@ -960,16 +1164,71 @@
 
     // Limpiar cola
     btnClearQueue.addEventListener('click', () => {
-      if (isSending) {
-        showToast('Espera a que termine el envio', true);
+      if (isSending && !isPaused) {
+        showToast('Pausa el envio primero', true);
         return;
       }
       messageQueue = [];
+      isSending = false;
+      isPaused = false;
+      updateSendingUI();
       renderQueue();
+      progressBar.classList.add('hidden');
+      progressText.textContent = '';
     });
 
+    // Pausar envio
+    btnPause.addEventListener('click', () => {
+      isPaused = true;
+      // Resetear el que estaba "enviando" a pendiente
+      messageQueue.forEach(item => {
+        if (item.status === 'sending') {
+          item.status = 'pending';
+        }
+      });
+      renderQueue();
+      updateSendingUI();
+      showToast('Envio pausado');
+    });
+
+    // Reanudar envio (incluye pendientes y errores)
+    btnResume.addEventListener('click', () => {
+      // Convertir errores y "sending" a pendientes para reintentar
+      messageQueue.forEach(item => {
+        if (item.status === 'error' || item.status === 'sending') {
+          item.status = 'pending';
+        }
+      });
+      isPaused = false;
+      isSending = false; // Reset para que startSending funcione
+      renderQueue();
+      startSending();
+    });
+
+    // Actualizar UI según estado de envio
+    function updateSendingUI() {
+      if (isSending && !isPaused) {
+        btnSendAll.classList.add('hidden');
+        btnPause.classList.remove('hidden');
+        btnResume.classList.add('hidden');
+      } else if (isSending && isPaused) {
+        btnSendAll.classList.add('hidden');
+        btnPause.classList.add('hidden');
+        btnResume.classList.remove('hidden');
+        progressText.textContent = 'Pausado - click en Reanudar para continuar';
+      } else {
+        btnSendAll.classList.remove('hidden');
+        btnSendAll.disabled = false;
+        btnSendAll.textContent = 'ENVIAR TODOS (con delay anti-ban)';
+        btnPause.classList.add('hidden');
+        btnResume.classList.add('hidden');
+      }
+    }
+
     // Enviar todos
-    btnSendAll.addEventListener('click', async () => {
+    btnSendAll.addEventListener('click', startSending);
+
+    async function startSending() {
       const pending = messageQueue.filter(m => m.status === 'pending');
       if (pending.length === 0) {
         showToast('No hay mensajes pendientes', true);
@@ -977,14 +1236,20 @@
       }
 
       isSending = true;
-      btnSendAll.disabled = true;
-      btnSendAll.textContent = 'Enviando...';
+      isPaused = false;
+      updateSendingUI();
       progressBar.classList.remove('hidden');
 
       let sent = 0;
       let errors = 0;
+      const totalToSend = pending.length;
 
       for (let i = 0; i < messageQueue.length; i++) {
+        // Verificar pausa
+        if (isPaused) {
+          break;
+        }
+
         const item = messageQueue[i];
         if (item.status !== 'pending') continue;
 
@@ -1020,30 +1285,35 @@
         renderQueue();
 
         // Actualizar progreso
-        const progress = ((sent + errors) / pending.length) * 100;
+        const progress = ((sent + errors) / totalToSend) * 100;
         progressFill.style.width = progress + '%';
 
         // Delay aleatorio entre 30-60 segundos (excepto el ultimo)
         const remainingPending = messageQueue.filter(m => m.status === 'pending').length;
-        if (remainingPending > 0) {
+        if (remainingPending > 0 && !isPaused) {
           const delay = 30 + Math.random() * 30; // 30-60 segundos
-          progressText.textContent = `Esperando ${Math.round(delay)}s antes del siguiente (anti-ban)...`;
-          await new Promise(r => setTimeout(r, delay * 1000));
+          for (let s = Math.round(delay); s > 0 && !isPaused; s--) {
+            progressText.textContent = `Esperando ${s}s antes del siguiente (anti-ban)...`;
+            await new Promise(r => setTimeout(r, 1000));
+          }
         }
       }
 
-      isSending = false;
-      btnSendAll.disabled = false;
-      btnSendAll.textContent = 'ENVIAR TODOS (con delay anti-ban)';
-      progressText.textContent = `Completado: ${sent} enviados, ${errors} errores`;
+      // Si terminó (no fue pausado)
+      if (!isPaused) {
+        isSending = false;
+        updateSendingUI();
+        progressText.textContent = `Completado: ${sent} enviados, ${errors} errores`;
 
-      // Recargar contactos para actualizar el orden (más usados arriba)
-      await loadAllContacts();
+        // Recargar contactos para actualizar el orden (más usados arriba)
+        await loadAllContacts();
 
-      showToast(`Envio completado: ${sent} enviados, ${errors} errores`);
-    });
+        showToast(`Envio completado: ${sent} enviados, ${errors} errores`);
+      }
+    }
 
     // Inicializar
+    loadSelectedContacts(); // Cargar selección guardada
     updateStatus();
     loadMediaFiles();
     loadAllContacts().then(() => loadBroadcastLists());

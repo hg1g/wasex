@@ -54,5 +54,10 @@ export function getRequiredVariables(): string[] {
 }
 
 export function extractFirstName(fullName: string): string {
+  // Si el nombre es solo números (teléfono), devolver vacío
+  const cleaned = fullName.replace(/[\s\-\(\)\+]/g, '');
+  if (/^\d+$/.test(cleaned)) {
+    return '';
+  }
   return fullName.split(' ')[0];
 }
